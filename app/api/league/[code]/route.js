@@ -38,10 +38,15 @@ export async function GET(request, { params }) {
 
     const matchesData = await matchesRes.json();
     const standingsData = await standingsRes.json();
+    const groups = standingsData.standings ?? [];
 
     return Response.json({
       matches: matchesData.matches ?? [],
-      standings: standingsData.standings?.[0]?.table ?? [],
+      standings: {
+        total: groups.find((g) => g.type === "TOTAL")?.table ?? [],
+        home: groups.find((g) => g.type === "HOME")?.table ?? [],
+        away: groups.find((g) => g.type === "AWAY")?.table ?? [],
+      },
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
