@@ -1,7 +1,7 @@
 const BASE_URL = "https://v3.football.api-sports.io";
 
-async function resolveTeamId(name, headers) {
-  const res = await fetch(`${BASE_URL}/teams?search=${encodeURIComponent(name)}`, {
+async function searchTeam(query, headers) {
+  const res = await fetch(`${BASE_URL}/teams?search=${encodeURIComponent(query)}`, {
     headers,
     next: { revalidate: 604800 },
   });
@@ -9,6 +9,25 @@ async function resolveTeamId(name, headers) {
   const data = await res.json();
   return data.response?.[0]?.team?.id ?? null;
 }
+
+async function resolveTeamId(name, headers) {
+  // A API-Football costuma cadastrar os times sem sufixos como "FC", "AFC", "CF".
+  // Tenta o nome original e depois variações mais "limpas" até encontrar.
+  const variants = [
+    name,
+    name.replace(/\s+(FC|CF|AFC|SC|AC)$/i, ""),
+    name.replace(/^(FC|AFC|CF|SC|AC)\s+/i, ""),
+    name.split(" ")[0],
+  ];
+
+  for (const variant of variants) {
+    if (!variant || variant.length < 3) continue;
+    const id = await searchTeam(variant, headers);
+    if (id) return id;
+  }
+  return null;
+}
+
 
 async function teamAverages(teamId, headers) {
   const fixturesRes = await fetch(`${BASE_URL}/fixtures?team=${teamId}&last=5`, {
