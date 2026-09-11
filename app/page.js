@@ -32,11 +32,13 @@ export default function Page() {
   const [error, setError] = useState(null);
   const [advantages, setAdvantages] = useState(null);
   const [calculating, setCalculating] = useState(false);
+  const [statsByMatch, setStatsByMatch] = useState({});
 
   const load = useCallback(async (code) => {
     setLoading(true);
     setError(null);
     setAdvantages(null);
+    setStatsByMatch({});
     try {
       const res = await fetch(`/api/league/${code}`);
       const json = await res.json();
@@ -73,6 +75,20 @@ export default function Page() {
       setTab("vantagens");
       setCalculating(false);
     }, 250);
+  }
+
+  async function loadMatchStats(match) {
+    setStatsByMatch((prev) => ({ ...prev, [match.id]: { loading: true } }));
+    try {
+      const res = await fetch(
+        `/api/stats?home=${encodeURIComponent(match.homeTeam.name)}&away=${encodeURIComponent(match.awayTeam.name)}`
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Não consegui calcular.");
+      setStatsByMatch((prev) => ({ ...prev, [match.id]: { data: json } }));
+    } catch (e) {
+      setStatsByMatch((prev) => ({ ...prev, [match.id]: { error: e.message } }));
+    }
   }
 
   return (
@@ -141,6 +157,7 @@ export default function Page() {
       {!loading && tab === "proximos" &&
         upcoming.map((m) => {
           const est = estimateMatch(standings, allMatches, m.homeTeam.name, m.awayTeam.name);
+          const statState = statsByMatch[m.id];
           return (
             <div className="up-row" key={m.id}>
               <div className="up-top">
@@ -168,6 +185,49 @@ export default function Page() {
                 </>
               ) : (
                 <div className="up-goals">Dados insuficientes para estimativa.</div>
+              )}
+
+              {!statState && (
+                <button className="stats-btn" onClick={() => loadMatchStats(m)}>
+                  Ver escanteios / faltas / chutes
+                </button>
+              )}
+              {statState?.loading && <div className="up-goals">Calculando…</div>}
+              {statState?.error && <div className="error-msg">{statState.error}</div>}
+              {statState?.data && (
+                <div className="stats-panel">
+                  <div className="stats-title">Média dos últimos jogos (combinado dos 2 times)</div>
+                  <div className="stats-grid">
+                    <div className="stats-item">
+                      <span className="stats-num">
+                        {(statState.data.home.corners + statState.data.away.corners).toFixed(1)}
+                      </span>
+                      <span className="stats-label">Escanteios</span>
+                    </div>
+                    <div className="stats-item">
+                      <span className="stats-num">
+                        {(statState.data.home.fouls + statState.data.away.fouls).toFixed(1)}
+                      </span>
+                      <span className="stats-label">Faltas</span>
+                    </div>
+                    <div className="stats-item">
+                      <span className="stats-num">
+                        {(statState.data.home.shotsOnGoal + statState.data.away.shotsOnGoal).toFixed(1)}
+                      </span>
+                      <span className="stats-label">Chutes a gol</span>
+                    </div>
+                    <div className="stats-item">
+                      <span className="stats-num">
+                        {(statState.data.home.throwIns + statState.data.away.throwIns).toFixed(1)}
+                      </span>
+                      <span className="stats-label">Laterais</span>
+                    </div>
+                  </div>
+                  <div className="stats-sub">
+                    Baseado nos últimos {statState.data.home.sampleSize} jogos de {m.homeTeam.name} e{" "}
+                    {statState.data.away.sampleSize} de {m.awayTeam.name}.
+                  </div>
+                </div>
               )}
             </div>
           );
@@ -217,8 +277,10 @@ export default function Page() {
       )}
 
       <p className="footnote">
-        Estimativas calculadas com um modelo de Poisson (ataque/defesa separados por casa e fora, combinado com a
-        forma dos últimos 5 jogos) — não usam odds de casas de apostas e não são recomendação de aposta.
+        Estimativas calculadas com um modelo de Poisson (ataque/defesa por casa/fora + forma recente) e médias
+        históricas de escanteios/faltas/chutes/laterais — não usam odds de casas de apostas, não são garantia de
+        resultado e não são recomendação de aposta. A API de estatísticas detalhadas tem cota limitada (100
+        consultas/dia), então use com moderação.
       </p>
     </div>
   );
