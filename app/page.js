@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { estimateMatch, rankBiggestAdvantages } from "../lib/model";
+import { estimateMatch, rankBiggestAdvantages, bestPickOfDay } from "../lib/model";
 
 const LEAGUES = [
   { code: "PL", label: "Premier League" },
@@ -24,6 +24,11 @@ function outcome(hs, as) {
   return "empate";
 }
 
+function Crest({ src, alt }) {
+  if (!src) return null;
+  return <img className="crest" src={src} alt={alt} onError={(e) => (e.currentTarget.style.display = "none")} />;
+}
+
 export default function Page() {
   const [league, setLeague] = useState("PL");
   const [tab, setTab] = useState("resultados");
@@ -33,12 +38,15 @@ export default function Page() {
   const [advantages, setAdvantages] = useState(null);
   const [calculating, setCalculating] = useState(false);
   const [statsByMatch, setStatsByMatch] = useState({});
+  const [bestPick, setBestPick] = useState(null);
+  const [calculatingBest, setCalculatingBest] = useState(false);
 
   const load = useCallback(async (code) => {
     setLoading(true);
     setError(null);
     setAdvantages(null);
     setStatsByMatch({});
+    setBestPick(null);
     try {
       const res = await fetch(`/api/league/${code}`);
       const json = await res.json();
@@ -77,6 +85,15 @@ export default function Page() {
     }, 250);
   }
 
+  function handleBestPick() {
+    setCalculatingBest(true);
+    setTimeout(() => {
+      const picks = bestPickOfDay(upcoming, allMatches, standings, 1);
+      setBestPick(picks[0] ?? null);
+      setCalculatingBest(false);
+    }, 250);
+  }
+
   async function loadMatchStats(match) {
     setStatsByMatch((prev) => ({ ...prev, [match.id]: { loading: true } }));
     try {
@@ -110,11 +127,36 @@ export default function Page() {
         ))}
       </div>
 
-      <button className="advantage-btn" onClick={handleAdvantages} disabled={loading || calculating || upcoming.length === 0}>
-        {calculating ? "Calculando…" : "⚡ Gerar times com maior vantagem de vitória"}
-      </button>
+      <div className="btn-row">
+        <button className="advantage-btn" onClick={handleAdvantages} disabled={loading || calculating || upcoming.length === 0}>
+          {calculating ? "Calculando…" : "⚡ Times com maior vantagem"}
+        </button>
+        <button className="bestpick-btn" onClick={handleBestPick} disabled={loading || calculatingBest || upcoming.length === 0}>
+          {calculatingBest ? "Calculando…" : "🎯 Aposta do dia"}
+        </button>
+      </div>
 
       {error && <div className="error-msg">{error}</div>}
+
+      {bestPick && (
+        <div className="bestpick-card">
+          <div className="bestpick-label">Palpite com maior probabilidade estimada</div>
+          <div className="bestpick-teams">
+            <span className="team-cell">
+              <Crest src={bestPick.match.homeTeam.crest} alt="" />
+              {bestPick.match.homeTeam.name}
+            </span>
+            <span className="vs">vs</span>
+            <span className="team-cell">
+              <Crest src={bestPick.match.awayTeam.crest} alt="" />
+              {bestPick.match.awayTeam.name}
+            </span>
+          </div>
+          <div className="bestpick-market">{bestPick.market}</div>
+          <div className="bestpick-prob">{bestPick.prob.toFixed(0)}%</div>
+          <div className="bestpick-date">{fmtDate(bestPick.match.utcDate)}</div>
+        </div>
+      )}
 
       <div className="view-tabs">
         <button className={"view-tab " + (tab === "resultados" ? "active" : "")} onClick={() => setTab("resultados")}>
@@ -141,14 +183,16 @@ export default function Page() {
           return (
             <div className="row" key={m.id}>
               <span className="row-date">{fmtDate(m.utcDate)}</span>
-              <span className={"row-team " + (res === "casa" ? "win" : res === "empate" ? "draw" : "")}>
+              <span className={"row-team team-cell " + (res === "casa" ? "win" : res === "empate" ? "draw" : "")}>
+                <Crest src={m.homeTeam.crest} alt="" />
                 {m.homeTeam.name}
               </span>
               <span className="row-score">
                 {m.score.fullTime.home} – {m.score.fullTime.away}
               </span>
-              <span className={"row-team right " + (res === "fora" ? "win" : res === "empate" ? "draw" : "")}>
+              <span className={"row-team team-cell right " + (res === "fora" ? "win" : res === "empate" ? "draw" : "")}>
                 {m.awayTeam.name}
+                <Crest src={m.awayTeam.crest} alt="" />
               </span>
             </div>
           );
@@ -163,7 +207,15 @@ export default function Page() {
               <div className="up-top">
                 <span>{fmtDate(m.utcDate)}</span>
                 <span className="up-teams">
-                  {m.homeTeam.name} <span className="vs">vs</span> {m.awayTeam.name}
+                  <span className="team-cell">
+                    <Crest src={m.homeTeam.crest} alt="" />
+                    {m.homeTeam.name}
+                  </span>
+                  <span className="vs">vs</span>
+                  <span className="team-cell">
+                    <Crest src={m.awayTeam.crest} alt="" />
+                    {m.awayTeam.name}
+                  </span>
                 </span>
               </div>
               {est ? (
@@ -246,7 +298,10 @@ export default function Page() {
           {standings.total.map((s) => (
             <div className="table-row" key={s.team.id}>
               <span className="pos">{s.position}</span>
-              <span className="team">{s.team.name}</span>
+              <span className="team team-cell">
+                <Crest src={s.team.crest} alt="" />
+                {s.team.name}
+              </span>
               <span>{s.won}</span>
               <span>{s.draw}</span>
               <span>{s.lost}</span>
@@ -263,7 +318,15 @@ export default function Page() {
             <div className="advantage-card" key={match.id}>
               <div className="advantage-top">
                 <span className="advantage-teams">
-                  {match.homeTeam.name} <span className="vs">vs</span> {match.awayTeam.name}
+                  <span className="team-cell">
+                    <Crest src={match.homeTeam.crest} alt="" />
+                    {match.homeTeam.name}
+                  </span>
+                  <span className="vs">vs</span>
+                  <span className="team-cell">
+                    <Crest src={match.awayTeam.crest} alt="" />
+                    {match.awayTeam.name}
+                  </span>
                 </span>
                 <span className="advantage-pct">{edge.toFixed(0)}%</span>
               </div>
@@ -279,8 +342,8 @@ export default function Page() {
       <p className="footnote">
         Estimativas calculadas com um modelo de Poisson (ataque/defesa por casa/fora + forma recente) e médias
         históricas de escanteios/faltas/chutes/laterais — não usam odds de casas de apostas, não são garantia de
-        resultado e não são recomendação de aposta. A API de estatísticas detalhadas tem cota limitada (100
-        consultas/dia), então use com moderação.
+        resultado e não são recomendação de aposta. A "Aposta do dia" mostra o palpite estatisticamente mais provável
+        entre os jogos carregados, não uma certeza.
       </p>
     </div>
   );
