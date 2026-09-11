@@ -53,23 +53,23 @@ export default function Page() {
     load(league);
   }, [league, load]);
 
-  const results = (data?.matches ?? [])
+  const standings = data?.standings ?? { total: [], home: [], away: [] };
+  const allMatches = data?.matches ?? [];
+
+  const results = allMatches
     .filter((m) => m.status === "FINISHED")
     .sort((a, b) => new Date(b.utcDate) - new Date(a.utcDate))
     .slice(0, 12);
 
-  const upcoming = (data?.matches ?? [])
+  const upcoming = allMatches
     .filter((m) => m.status === "SCHEDULED" || m.status === "TIMED")
     .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
     .slice(0, 12);
 
-  const standings = data?.standings ?? [];
-
   function handleAdvantages() {
     setCalculating(true);
-    // pequeno atraso só pra dar feedback visual de "calculando"
     setTimeout(() => {
-      setAdvantages(rankBiggestAdvantages(upcoming, standings, 8));
+      setAdvantages(rankBiggestAdvantages(upcoming, allMatches, standings, 8));
       setTab("vantagens");
       setCalculating(false);
     }, 250);
@@ -140,7 +140,7 @@ export default function Page() {
 
       {!loading && tab === "proximos" &&
         upcoming.map((m) => {
-          const est = estimateMatch(standings, m.homeTeam.name, m.awayTeam.name);
+          const est = estimateMatch(standings, allMatches, m.homeTeam.name, m.awayTeam.name);
           return (
             <div className="up-row" key={m.id}>
               <div className="up-top">
@@ -162,8 +162,8 @@ export default function Page() {
                     <span>{est.pAway.toFixed(0)}%</span>
                   </div>
                   <div className="up-goals">
-                    Gols esperados: {est.expectedGoalsHome.toFixed(1)} – {est.expectedGoalsAway.toFixed(1)} (total ~
-                    {est.expectedTotalGoals.toFixed(1)})
+                    Gols esperados: {est.expectedGoalsHome.toFixed(1)} – {est.expectedGoalsAway.toFixed(1)} · placar
+                    provável {est.likelyScore}
                   </div>
                 </>
               ) : (
@@ -183,7 +183,7 @@ export default function Page() {
             <span>D</span>
             <span>Pts</span>
           </div>
-          {standings.map((s) => (
+          {standings.total.map((s) => (
             <div className="table-row" key={s.team.id}>
               <span className="pos">{s.position}</span>
               <span className="team">{s.team.name}</span>
@@ -208,8 +208,8 @@ export default function Page() {
                 <span className="advantage-pct">{edge.toFixed(0)}%</span>
               </div>
               <div className="advantage-sub">
-                Favorito: {favored === "casa" ? match.homeTeam.name : match.awayTeam.name} ({favored}) · {fmtDate(match.utcDate)} · gols
-                esperados ~{estimate.expectedTotalGoals.toFixed(1)}
+                Favorito: {favored === "casa" ? match.homeTeam.name : match.awayTeam.name} ({favored}) · {fmtDate(match.utcDate)} · placar
+                provável {estimate.likelyScore}
               </div>
             </div>
           ))}
@@ -217,9 +217,8 @@ export default function Page() {
       )}
 
       <p className="footnote">
-        Estimativas calculadas a partir do histórico de pontos e saldo de gols da temporada — não usam odds de casas de
-        apostas e não são recomendação de aposta. Escanteios e cartões não estão disponíveis no plano gratuito da
-        football-data.org.
+        Estimativas calculadas com um modelo de Poisson (ataque/defesa separados por casa e fora, combinado com a
+        forma dos últimos 5 jogos) — não usam odds de casas de apostas e não são recomendação de aposta.
       </p>
     </div>
   );
