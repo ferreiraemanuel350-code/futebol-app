@@ -100,3 +100,10 @@ body { margin: 0; }
 .sheet-action.advantage { background: #e8b93a; color: #0c1f17; }
 .sheet-action.bestpick { background: #2f7a52; color: #ffffff; }
 .sheet-action:disabled { opacity: 0.55; }
+.prediction-card { display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: #14342e; border-radius: 10px; padding: 10px; margin-top: 8px; }
+.prediction-goals { display: flex; align-items: center; gap: 10px; }
+.prediction-num { font-size: 22px; font-weight: 900; color: #e8b93a; }
+.prediction-label { font-size: 10.5px; color: #9dc4b3; text-transform: uppercase; }
+.prediction-score { font-size: 12.5px; color: #e3f0e8; }
+.prediction-score strong { color: #ffffff; }
