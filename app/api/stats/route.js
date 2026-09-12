@@ -1,25 +1,30 @@
 const BASE_URL = "https://v3.football.api-sports.io";
 
+function currentSeason() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  return month >= 7 ? year : year - 1;
+}
+
 async function searchTeam(query, headers) {
   const res = await fetch(`${BASE_URL}/teams?search=${encodeURIComponent(query)}`, {
     headers,
     next: { revalidate: 604800 },
   });
+  if (res.status === 429) throw new Error("QUOTA");
   if (!res.ok) return null;
   const data = await res.json();
   return data.response?.[0]?.team?.id ?? null;
 }
 
 async function resolveTeamId(name, headers) {
-  // A API-Football costuma cadastrar os times sem sufixos como "FC", "AFC", "CF".
-  // Tenta o nome original e depois variações mais "limpas" até encontrar.
   const variants = [
     name,
     name.replace(/\s+(FC|CF|AFC|SC|AC)$/i, ""),
     name.replace(/^(FC|AFC|CF|SC|AC)\s+/i, ""),
     name.split(" ")[0],
   ];
-
   for (const variant of variants) {
     if (!variant || variant.length < 3) continue;
     const id = await searchTeam(variant, headers);
@@ -28,15 +33,17 @@ async function resolveTeamId(name, headers) {
   return null;
 }
 
-
 async function teamAverages(teamId, headers) {
-  const fixturesRes = await fetch(`${BASE_URL}/fixtures?team=${teamId}&last=5`, {
+  const season = currentSeason();
+  const fixturesRes = await fetch(`${BASE_URL}/fixtures?team=${teamId}&last=5&season=${season}`, {
     headers,
     next: { revalidate: 21600 },
   });
+  if (fixturesRes.status === 429) throw new Error("QUOTA");
   if (!fixturesRes.ok) return null;
   const fixturesData = await fixturesRes.json();
   const fixtures = fixturesData.response ?? [];
+  if (!fixtures.length) return null;
 
   const statsPromises = fixtures.map((f) =>
     fetch(`${BASE_URL}/fixtures/statistics?fixture=${f.fixture.id}&team=${teamId}`, {
@@ -87,26 +94,26 @@ export async function GET(request) {
   const headers = { "x-apisports-key": apiKey };
 
   try {
-    const [homeId, awayId] = await Promise.all([
-      resolveTeamId(home, headers),
-      resolveTeamId(away, headers),
-    ]);
+    const [homeId, awayId] = await Promise.all([resolveTeamId(home, headers), resolveTeamId(away, headers)]);
 
     if (!homeId || !awayId) {
       return Response.json({ error: "Não encontrei um dos times na API-Football." }, { status: 404 });
     }
 
-    const [homeStats, awayStats] = await Promise.all([
-      teamAverages(homeId, headers),
-      teamAverages(awayId, headers),
-    ]);
+    const [homeStats, awayStats] = await Promise.all([teamAverages(homeId, headers), teamAverages(awayId, headers)]);
 
     if (!homeStats || !awayStats) {
-      return Response.json({ error: "Sem jogos recentes suficientes para estimar." }, { status: 404 });
+      return Response.json(
+        { error: "Sem jogos da temporada atual disponíveis para um dos times ainda." },
+        { status: 404 }
+      );
     }
 
     return Response.json({ home: homeStats, away: awayStats });
   } catch (err) {
+    if (err.message === "QUOTA") {
+      return Response.json({ error: "Limite diário da API-Football atingido. Tente de novo amanhã." }, { status: 429 });
+    }
     return Response.json({ error: err.message }, { status: 500 });
   }
 }
