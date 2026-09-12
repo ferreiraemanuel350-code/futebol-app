@@ -254,4 +254,172 @@ export default function Page() {
                 <span className="stats-num">{(statState.data.home.shotsOnGoal + statState.data.away.shotsOnGoal).toFixed(1)}</span>
                 <span className="stats-label">Chutes a gol</span>
               </div>
-              <div className="stats-i
+              <div className="stats-item">
+                <span className="stats-num">{(statState.data.home.throwIns + statState.data.away.throwIns).toFixed(1)}</span>
+                <span className="stats-label">Laterais</span>
+              </div>
+            </div>
+            <div className="stats-sub">
+              Baseado nos últimos {statState.data.home.sampleSize} jogos de {m.homeTeam.name} e {statState.data.away.sampleSize} de {m.awayTeam.name}.
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const currentLeagueLabel = LEAGUES.find((l) => l.code === league)?.label ?? "";
+
+  return (
+    <div className="app">
+      <div className="topbar">
+        <span className="topbar-title">⚽ Boletim</span>
+        <button className="league-chip" onClick={() => setSheetOpen(true)}>
+          {currentLeagueLabel} <span className="chevron">▾</span>
+        </button>
+      </div>
+
+      {error && <div className="error-msg">{error}</div>}
+
+      {bestPick && (
+        <div className="bestpick-card">
+          <div className="bestpick-label">Palpite com maior probabilidade estimada</div>
+          <div className="bestpick-teams">
+            <span className="team-cell plain"><Crest src={bestPick.match.homeTeam.crest} alt="" />{bestPick.match.homeTeam.name}</span>
+            <span className="vs">vs</span>
+            <span className="team-cell plain"><Crest src={bestPick.match.awayTeam.crest} alt="" />{bestPick.match.awayTeam.name}</span>
+          </div>
+          <div className="bestpick-market">{bestPick.market}</div>
+          <div className="bestpick-prob">{bestPick.prob.toFixed(0)}%</div>
+          <div className="bestpick-date">{fmtDate(bestPick.match.utcDate)}</div>
+        </div>
+      )}
+
+      <div className="content">
+        {loading && <div className="state-msg">Carregando dados…</div>}
+
+        {!loading && section === "resultados" && results.map(ResultRow)}
+        {!loading && section === "proximos" && upcoming.map(UpcomingRow)}
+
+        {!loading && section === "tabela" && (
+          <div className="table-wrap">
+            <div className="table-head">
+              <span className="pos">#</span>
+              <span className="team">Time</span>
+              <span>V</span>
+              <span>E</span>
+              <span>D</span>
+              <span>Pts</span>
+            </div>
+            {standings.total.map((s) => (
+              <div className="table-row" key={s.team.id}>
+                <span className="pos">{s.position}</span>
+                <span className="team">
+                  <TeamTag name={s.team.name} crest={s.team.crest} favorites={favorites} onToggleFavorite={toggleFavorite} />
+                </span>
+                <span>{s.won}</span>
+                <span>{s.draw}</span>
+                <span>{s.lost}</span>
+                <span className="pts">{s.points}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loading && section === "favoritos" && (
+          <>
+            {favorites.length === 0 && (
+              <div className="state-msg">Toque na estrela ☆ ao lado de um time pra favoritar e vê-lo aqui.</div>
+            )}
+            {favorites.length > 0 && favResults.length === 0 && favUpcoming.length === 0 && (
+              <div className="state-msg">Nenhum jogo de time favorito nesta liga no momento.</div>
+            )}
+            {favResults.length > 0 && <div className="section-label">Resultados</div>}
+            {favResults.map(ResultRow)}
+            {favUpcoming.length > 0 && <div className="section-label">Próximas partidas</div>}
+            {favUpcoming.map(UpcomingRow)}
+          </>
+        )}
+
+        {!loading && section === "vantagens" && advantages && (
+          <>
+            {advantages.length === 0 && <div className="state-msg">Nenhuma partida futura disponível para estimar.</div>}
+            {advantages.map(({ match, estimate, favored, edge }) => (
+              <div className="advantage-card" key={match.id}>
+                <div className="advantage-top">
+                  <span className="advantage-teams">
+                    <span className="team-cell plain"><Crest src={match.homeTeam.crest} alt="" />{match.homeTeam.name}</span>
+                    <span className="vs">vs</span>
+                    <span className="team-cell plain"><Crest src={match.awayTeam.crest} alt="" />{match.awayTeam.name}</span>
+                  </span>
+                  <span className="advantage-pct">{edge.toFixed(0)}%</span>
+                </div>
+                <div className="advantage-sub">
+                  Favorito: {favored === "casa" ? match.homeTeam.name : match.awayTeam.name} ({favored}) · {fmtDate(match.utcDate)} · placar provável {estimate.likelyScore}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        <p className="footnote">
+          Estimativas calculadas com um modelo de Poisson (ataque/defesa por casa/fora + forma recente) e médias
+          históricas de escanteios/faltas/chutes/laterais — não usam odds de casas de apostas, não são garantia de
+          resultado e não são recomendação de aposta.
+        </p>
+      </div>
+
+      <div className="bottomnav">
+        {[
+          { id: "resultados", label: "Resultados" },
+          { id: "proximos", label: "Próximos" },
+          { id: "tabela", label: "Tabela" },
+          { id: "favoritos", label: "Favoritos" },
+        ].map((item) => (
+          <button
+            key={item.id}
+            className={"nav-btn " + (section === item.id ? "active" : "")}
+            onClick={() => setSection(item.id)}
+          >
+            <NavIcon name={item.id} active={section === item.id} />
+            <span>{item.label}</span>
+          </button>
+        ))}
+        <button className={"nav-btn " + (sheetOpen ? "active" : "")} onClick={() => setSheetOpen(true)}>
+          <NavIcon name="mais" />
+          <span>Mais</span>
+        </button>
+      </div>
+
+      {sheetOpen && (
+        <div className="sheet-overlay" onClick={() => setSheetOpen(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="sheet-section-title">Escolher liga</div>
+            <div className="sheet-leagues">
+              {LEAGUES.map((l) => (
+                <button
+                  key={l.code}
+                  className={"league-tab " + (league === l.code ? "active" : "")}
+                  onClick={() => {
+                    setLeague(l.code);
+                    setSheetOpen(false);
+                  }}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <div className="sheet-section-title">Ferramentas</div>
+            <button className="sheet-action advantage" onClick={handleAdvantages} disabled={loading || calculating || upcoming.length === 0}>
+              {calculating ? "Calculando…" : "⚡ Times com maior vantagem"}
+            </button>
+            <button className="sheet-action bestpick" onClick={handleBestPick} disabled={loading || calculatingBest || upcoming.length === 0}>
+              {calculatingBest ? "Calculando…" : "🎯 Aposta do dia"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
