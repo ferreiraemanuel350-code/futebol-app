@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -22,6 +23,11 @@ function outcome(hs, as) {
   if (hs > as) return "casa";
   if (as > hs) return "fora";
   return "empate";
+}
+
+function isWeekend(iso) {
+  const day = new Date(iso).getDay();
+  return day === 0 || day === 6;
 }
 
 function Crest({ src, alt }) {
@@ -85,6 +91,7 @@ export default function Page() {
   const [calculatingBest, setCalculatingBest] = useState(false);
   const [favorites, setFavorites] = useState([]);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [dateFilter, setDateFilter] = useState("todos");
 
   useEffect(() => {
     try {
@@ -137,6 +144,12 @@ export default function Page() {
     .filter((m) => m.status === "SCHEDULED" || m.status === "TIMED")
     .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
     .slice(0, 12);
+
+  const filteredUpcoming = upcoming.filter((m) => {
+    if (dateFilter === "fim") return isWeekend(m.utcDate);
+    if (dateFilter === "meio") return !isWeekend(m.utcDate);
+    return true;
+  });
 
   const favResults = results.filter((m) => favorites.includes(m.homeTeam.name) || favorites.includes(m.awayTeam.name));
   const favUpcoming = upcoming.filter((m) => favorites.includes(m.homeTeam.name) || favorites.includes(m.awayTeam.name));
@@ -299,7 +312,18 @@ export default function Page() {
         {loading && <div className="state-msg">Carregando dados…</div>}
 
         {!loading && section === "resultados" && results.map(ResultRow)}
-        {!loading && section === "proximos" && upcoming.map(UpcomingRow)}
+
+        {!loading && section === "proximos" && (
+          <>
+            <div className="date-tabs">
+              <button className={"date-tab " + (dateFilter === "todos" ? "active" : "")} onClick={() => setDateFilter("todos")}>Todos</button>
+              <button className={"date-tab " + (dateFilter === "meio" ? "active" : "")} onClick={() => setDateFilter("meio")}>Meio de semana</button>
+              <button className={"date-tab " + (dateFilter === "fim" ? "active" : "")} onClick={() => setDateFilter("fim")}>Fim de semana</button>
+            </div>
+            {filteredUpcoming.length === 0 && <div className="state-msg">Nenhum jogo nesse período.</div>}
+            {filteredUpcoming.map(UpcomingRow)}
+          </>
+        )}
 
         {!loading && section === "tabela" && (
           <div className="table-wrap">
