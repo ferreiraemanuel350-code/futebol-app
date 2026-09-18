@@ -68,8 +68,7 @@ body { margin: 0; }
 .table-row .pos { color: #a0a0a6; }
 .table-row .pts { font-weight: 800; color: #ffffff; }
 
-.section-label { font-size: 12px; color: #a0a0a6; text-transform: uppercase; letter-spacing: 0.05em;
-  margin: 16px 0 6px; }
+.section-label { font-size: 12px; color: #a0a0a6; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 6px; }
 
 .advantage-card { background: #141416; border: 1px solid #2a2a2e; border-left: 3px solid #e8b93a;
   border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
@@ -99,16 +98,13 @@ body { margin: 0; }
 .nav-btn.active { color: #e8b93a; }
 
 .sheet-overlay { position: fixed; inset: 0; background: #000000cc; z-index: 30; display: flex; align-items: flex-end; }
-.sheet { background: #141416; width: 100%; border-radius: 18px 18px 0 0; padding: 10px 16px 28px;
-  max-height: 80vh; overflow-y: auto; }
+.sheet { background: #141416; width: 100%; border-radius: 18px 18px 0 0; padding: 10px 16px 28px; max-height: 80vh; overflow-y: auto; }
 .sheet-handle { width: 36px; height: 4px; background: #333338; border-radius: 4px; margin: 6px auto 14px; }
 .sheet-section-title { font-size: 12px; color: #a0a0a6; text-transform: uppercase; letter-spacing: 0.05em; margin: 12px 0 8px; }
 .sheet-leagues { display: flex; flex-wrap: wrap; gap: 8px; }
-.league-tab { background: transparent; border: 1px solid #333338; color: #d0d0d4;
-  padding: 8px 14px; border-radius: 999px; font-size: 13px; }
+.league-tab { background: transparent; border: 1px solid #333338; color: #d0d0d4; padding: 8px 14px; border-radius: 999px; font-size: 13px; }
 .league-tab.active { background: #e8b93a; border-color: #e8b93a; color: #08080a; font-weight: 700; }
-.sheet-action { display: block; width: 100%; border: none; border-radius: 10px; padding: 13px;
-  font-weight: 800; font-size: 14px; margin-top: 10px; }
+.sheet-action { display: block; width: 100%; border: none; border-radius: 10px; padding: 13px; font-weight: 800; font-size: 14px; margin-top: 10px; }
 .sheet-action.advantage { background: #e8b93a; color: #08080a; }
 .sheet-action.bestpick { background: #2f7a52; color: #ffffff; }
 .sheet-action:disabled { opacity: 0.55; }
