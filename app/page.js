@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -92,6 +91,8 @@ export default function Page() {
   const [favorites, setFavorites] = useState([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState("todos");
+  const [history, setHistory] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     try {
@@ -131,6 +132,49 @@ export default function Page() {
   useEffect(() => {
     load(league);
   }, [league, load]);
+
+  useEffect(() => {
+    if (!data) return;
+    const finished = data.matches.filter((m) => m.status === "FINISHED");
+    if (finished.length) {
+      fetch("/api/predictions/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          matches: finished.map((m) => ({
+            id: m.id,
+            homeGoals: m.score.fullTime.home,
+            awayGoals: m.score.fullTime.away,
+          })),
+        }),
+      }).catch(() => {});
+    }
+    const upcomingNow = data.matches.filter((m) => m.status === "SCHEDULED" || m.status === "TIMED");
+    const toLog = upcomingNow
+      .map((m) => {
+        const est = estimateMatch(data.standings, data.matches, m.homeTeam.name, m.awayTeam.name);
+        if (!est) return null;
+        return {
+          id: m.id,
+          league,
+          home: m.homeTeam.name,
+          away: m.awayTeam.name,
+          date: m.utcDate,
+          pHome: est.pHome,
+          pDraw: est.pDraw,
+          pAway: est.pAway,
+          likelyScore: est.likelyScore,
+        };
+      })
+      .filter(Boolean);
+    if (toLog.length) {
+      fetch("/api/predictions/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matches: toLog }),
+      }).catch(() => {});
+    }
+  }, [data, league]);
 
   const standings = data?.standings ?? { total: [], home: [], away: [] };
   const allMatches = data?.matches ?? [];
@@ -172,6 +216,21 @@ export default function Page() {
       setSheetOpen(false);
       setCalculatingBest(false);
     }, 250);
+  }
+
+  async function loadHistory() {
+    setLoadingHistory(true);
+    setSheetOpen(false);
+    setSection("historico");
+    try {
+      const res = await fetch("/api/predictions/history");
+      const json = await res.json();
+      setHistory(json);
+    } catch {
+      setHistory({ records: [], stats: { total: 0, hits: 0, accuracy: 0 } });
+    } finally {
+      setLoadingHistory(false);
+    }
   }
 
   async function loadMatchStats(match) {
@@ -365,6 +424,37 @@ export default function Page() {
           </>
         )}
 
+        {section === "historico" && (
+          <>
+            {loadingHistory && <div className="state-msg">Carregando histórico…</div>}
+            {!loadingHistory && history && (
+              <>
+                <div className="bestpick-card">
+                  <div className="bestpick-label">Taxa de acerto (partidas já resolvidas)</div>
+                  <div className="bestpick-prob">{history.stats.accuracy.toFixed(0)}%</div>
+                  <div className="bestpick-date">{history.stats.hits} de {history.stats.total} palpites batem com o resultado</div>
+                </div>
+                {history.records.length === 0 && (
+                  <div className="state-msg">Ainda sem partidas resolvidas — volte depois que alguns jogos acontecerem.</div>
+                )}
+                {history.records.map((r) => (
+                  <div className="advantage-card" key={r.id}>
+                    <div className="advantage-top">
+                      <span className="advantage-teams">{r.home} vs {r.away}</span>
+                      <span className="advantage-pct" style={{ color: r.hit ? "#4f9c73" : "#ff9d8a" }}>
+                        {r.hit ? "✓ Acertou" : "✗ Errou"}
+                      </span>
+                    </div>
+                    <div className="advantage-sub">
+                      Previsto: {r.predicted} · Real: {r.homeGoals}-{r.awayGoals} ({r.actual}) · {fmtDate(r.date)}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </>
+        )}
+
         {!loading && section === "vantagens" && advantages && (
           <>
             {advantages.length === 0 && <div className="state-msg">Nenhuma partida futura disponível para estimar.</div>}
@@ -440,6 +530,9 @@ export default function Page() {
             </button>
             <button className="sheet-action bestpick" onClick={handleBestPick} disabled={loading || calculatingBest || upcoming.length === 0}>
               {calculatingBest ? "Calculando…" : "🎯 Aposta do dia"}
+            </button>
+            <button className="sheet-action" style={{ background: "#2a2a2e", color: "#f5f5f7" }} onClick={loadHistory}>
+              📊 Histórico de acertos
             </button>
           </div>
         </div>
