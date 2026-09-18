@@ -95,18 +95,13 @@ export async function GET(request) {
 
   try {
     const [homeId, awayId] = await Promise.all([resolveTeamId(home, headers), resolveTeamId(away, headers)]);
-
     if (!homeId || !awayId) {
       return Response.json({ error: "Não encontrei um dos times na API-Football." }, { status: 404 });
     }
 
     const [homeStats, awayStats] = await Promise.all([teamAverages(homeId, headers), teamAverages(awayId, headers)]);
-
     if (!homeStats || !awayStats) {
-      return Response.json(
-        { error: "Sem jogos da temporada atual disponíveis para um dos times ainda." },
-        { status: 404 }
-      );
+      return Response.json({ error: "Sem jogos da temporada atual disponíveis para um dos times ainda." }, { status: 404 });
     }
 
     return Response.json({ home: homeStats, away: awayStats });
