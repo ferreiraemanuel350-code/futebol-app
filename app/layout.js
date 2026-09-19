@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Boletim de Resultados",
+  title: "Boletim Sports",
   description: "Resultados, tabela e estimativas de futebol",
 };
 
