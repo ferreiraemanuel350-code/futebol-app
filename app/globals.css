@@ -1,17 +1,30 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 
-.app { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #08080a; min-height: 100vh; color: #f5f5f7; display: flex; flex-direction: column; }
+.shell { display: flex; min-height: 100vh; background: #08080a; color: #f5f5f7;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 
+.sidebar { width: 78px; flex-shrink: 0; background: #0c0c0e; border-right: 1px solid #1e1e21;
+  display: flex; flex-direction: column; padding: 12px 6px; position: sticky; top: 0;
+  height: 100vh; overflow-y: auto; gap: 4px; }
+.sidebar-logo { text-align: center; font-size: 20px; margin-bottom: 10px; }
+.sidebar-search { margin-bottom: 10px; }
+.sidebar-search input { width: 100%; background: #141416; border: 1px solid #2a2a2e; color: #f5f5f7;
+  border-radius: 8px; padding: 6px 4px; font-size: 10px; text-align: center; }
+.sidebar-search input::placeholder { color: #6a6a70; }
+.side-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; border: none;
+  color: #7a7a80; font-size: 9.5px; padding: 10px 2px; border-radius: 10px; cursor: pointer; }
+.side-btn.active { color: #08080a; background: #e8b93a; }
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px; background: #08080af0; backdrop-filter: blur(6px); border-bottom: 1px solid #232326; }
-.topbar-title { font-size: 17px; font-weight: 800; color: #ffffff; }
+.topbar-title { font-size: 16px; font-weight: 800; color: #ffffff; }
 .league-chip { background: #1a1a1e; border: 1px solid #333338; color: #f5f5f7; padding: 6px 12px;
-  border-radius: 999px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+  border-radius: 999px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
 .chevron { font-size: 10px; color: #e8b93a; }
 
-.content { flex: 1; padding: 12px 16px 90px; }
+.content { flex: 1; padding: 12px 16px 40px; }
 
 .date-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
 .date-tab { flex: 1; background: #141416; border: 1px solid #2a2a2e; color: #c7c7cc; padding: 8px 6px;
@@ -19,7 +32,7 @@ body { margin: 0; }
 .date-tab.active { background: #e8b93a; border-color: #e8b93a; color: #08080a; }
 
 .bestpick-card { background: linear-gradient(135deg, #1a1a1e, #08080a); border: 1px solid #e8b93a;
-  border-radius: 14px; padding: 16px; margin: 12px 16px 0; text-align: center; }
+  border-radius: 14px; padding: 16px; margin: 0 0 12px; text-align: center; }
 .bestpick-label { font-size: 11px; color: #a0a0a6; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
 .bestpick-teams { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px; color: #ffffff; font-weight: 700; margin-bottom: 6px; }
 .bestpick-market { font-size: 16px; color: #ffffff; font-weight: 700; margin-bottom: 2px; }
@@ -45,10 +58,7 @@ body { margin: 0; }
 .up-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; font-size: 12.5px; color: #a0a0a6; margin-bottom: 6px; gap: 6px; }
 .up-teams { display: flex; align-items: center; gap: 8px; color: #f5f5f7; font-weight: 600; flex-wrap: wrap; }
 .vs { color: #8a8a90; font-size: 11px; }
-.bar { display: flex; height: 6px; border-radius: 4px; overflow: hidden; background: #1e1e21; }
-.seg-h { background: #4f9c73; }
-.seg-d { background: #7a7a80; }
-.seg-a { background: #d97c56; }
+.bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: #1e1e21; }
 .up-bottom { display: flex; justify-content: space-between; font-size: 11px; color: #a0a0a6; margin-top: 4px; }
 .up-goals { font-size: 11px; color: #a0a0a6; margin-top: 6px; }
 
@@ -86,16 +96,12 @@ body { margin: 0; }
 .stats-num { font-size: 18px; font-weight: 800; color: #e8b93a; }
 .stats-label { font-size: 10px; color: #a0a0a6; margin-top: 2px; text-align: center; }
 .stats-sub { font-size: 10.5px; color: #7a7a80; margin-top: 8px; }
+.possession-row { display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: #d0d0d4; margin-top: 10px; padding-top: 8px; border-top: 1px solid #232326; }
 
 .state-msg { color: #a0a0a6; font-size: 13px; padding: 24px 4px; text-align: center; }
-.error-msg { color: #ff9d8a; font-size: 13px; padding: 14px; background: #2a1512; border-radius: 8px; margin: 12px 16px 0; }
+.error-msg { color: #ff9d8a; font-size: 13px; padding: 14px; background: #2a1512; border-radius: 8px; margin-bottom: 12px; }
 .footnote { margin-top: 24px; font-size: 11.5px; color: #6a6a70; line-height: 1.5; }
-
-.bottomnav { position: sticky; bottom: 0; z-index: 20; display: flex; background: #08080af0; backdrop-filter: blur(6px);
-  border-top: 1px solid #232326; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
-.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; background: none;
-  border: none; color: #7a7a80; font-size: 10px; padding: 6px 2px; }
-.nav-btn.active { color: #e8b93a; }
 
 .sheet-overlay { position: fixed; inset: 0; background: #000000cc; z-index: 30; display: flex; align-items: flex-end; }
 .sheet { background: #141416; width: 100%; border-radius: 18px 18px 0 0; padding: 10px 16px 28px; max-height: 80vh; overflow-y: auto; }
