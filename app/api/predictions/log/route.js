@@ -1,6 +1,7 @@
-import { kv } from "@vercel/kv";
+import { getRedis } from "../../../../lib/redis";
 
 export async function POST(request) {
+  const redis = getRedis();
   try {
     const { matches } = await request.json();
     let saved = 0;
@@ -20,9 +21,9 @@ export async function POST(request) {
         loggedAt: new Date().toISOString(),
         resolved: false,
       };
-      const wasSet = await kv.set(key, JSON.stringify(record), { nx: true });
-      if (wasSet) {
-        await kv.lpush("pred:index", m.id);
+      const result = await redis.set(key, JSON.stringify(record), "NX");
+      if (result === "OK") {
+        await redis.lpush("pred:index", m.id);
         saved++;
       }
     }
