@@ -1,14 +1,16 @@
-import { kv } from "@vercel/kv";
+import { getRedis } from "../../../../lib/redis";
 
 export async function GET() {
+  const redis = getRedis();
   try {
-    const ids = await kv.lrange("pred:index", 0, 199);
+    const ids = await redis.lrange("pred:index", 0, 199);
     if (!ids.length) return Response.json({ records: [], stats: { total: 0, hits: 0, accuracy: 0 } });
 
-    const raw = await kv.mget(...ids.map((id) => `pred:${id}`));
+    const keys = ids.map((id) => `pred:${id}`);
+    const raw = await redis.mget(keys);
     const records = raw
       .filter(Boolean)
-      .map((r) => (typeof r === "string" ? JSON.parse(r) : r))
+      .map((r) => JSON.parse(r))
       .filter((r) => r.resolved)
       .sort((a, b) => new Date(b.resolvedAt) - new Date(a.resolvedAt));
 
