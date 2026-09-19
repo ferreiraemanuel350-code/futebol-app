@@ -1,16 +1,17 @@
-import { kv } from "@vercel/kv";
+import { getRedis } from "../../../../lib/redis";
 
 export async function POST(request) {
+  const redis = getRedis();
   try {
     const { matches } = await request.json();
     let resolved = 0;
 
     for (const m of matches) {
       const key = `pred:${m.id}`;
-      const existingRaw = await kv.get(key);
+      const existingRaw = await redis.get(key);
       if (!existingRaw) continue;
 
-      const existing = typeof existingRaw === "string" ? JSON.parse(existingRaw) : existingRaw;
+      const existing = JSON.parse(existingRaw);
       if (existing.resolved) continue;
 
       const homeGoals = m.homeGoals;
@@ -33,7 +34,7 @@ export async function POST(request) {
         hit: actual === predicted,
         resolvedAt: new Date().toISOString(),
       };
-      await kv.set(key, JSON.stringify(updated));
+      await redis.set(key, JSON.stringify(updated));
       resolved++;
     }
 
