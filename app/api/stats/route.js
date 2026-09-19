@@ -7,6 +7,14 @@ function currentSeason() {
   return month >= 7 ? year : year - 1;
 }
 
+function checkApiErrors(data) {
+  const errors = data?.errors;
+  if (!errors) return null;
+  if (Array.isArray(errors) && errors.length === 0) return null;
+  if (!Array.isArray(errors) && Object.keys(errors).length === 0) return null;
+  return typeof errors === "string" ? errors : JSON.stringify(errors);
+}
+
 async function searchTeam(query, headers) {
   const res = await fetch(`${BASE_URL}/teams?search=${encodeURIComponent(query)}`, {
     headers,
@@ -16,6 +24,8 @@ async function searchTeam(query, headers) {
   if (res.status === 401 || res.status === 403) throw new Error("AUTH");
   if (!res.ok) throw new Error(`HTTP_${res.status}`);
   const data = await res.json();
+  const apiError = checkApiErrors(data);
+  if (apiError) throw new Error(`API_ERROR:${apiError}`);
   return data.response?.[0]?.team?.id ?? null;
 }
 
@@ -51,6 +61,9 @@ async function teamAverages(teamId, headers) {
   if (fixturesRes.status === 401 || fixturesRes.status === 403) throw new Error("AUTH");
   if (!fixturesRes.ok) throw new Error(`HTTP_${fixturesRes.status}`);
   const fixturesData = await fixturesRes.json();
+  const apiError = checkApiErrors(fixturesData);
+  if (apiError) throw new Error(`API_ERROR:${apiError}`);
+
   const fixtures = fixturesData.response ?? [];
   if (!fixtures.length) return null;
 
@@ -143,10 +156,13 @@ export async function GET(request) {
     return Response.json({ home: homeStats, away: awayStats });
   } catch (err) {
     if (err.message === "QUOTA") {
-      return Response.json({ error: "Limite diário da API-Football atingido. Tente de novo amanhã." }, { status: 429 });
+      return Response.json({ error: "Limite diário da API-Football atingido (429). Tente de novo amanhã." }, { status: 429 });
     }
     if (err.message === "AUTH") {
-      return Response.json({ error: "Chave da API-Football recusada (401/403) — confira se a chave em API_FOOTBALL_KEY na Vercel está certa e se o Pro foi ativado nela." }, { status: 403 });
+      return Response.json({ error: "Chave da API-Football recusada (401/403)." }, { status: 403 });
+    }
+    if (err.message.startsWith("API_ERROR:")) {
+      return Response.json({ error: `A API-Football retornou um aviso: ${err.message.replace("API_ERROR:", "")}` }, { status: 429 });
     }
     return Response.json({ error: `Erro inesperado: ${err.message}` }, { status: 500 });
   }
