@@ -63,17 +63,17 @@ function TeamTag({ name, crest, favorites, onToggleFavorite }) {
 }
 
 function NavIcon({ name, active }) {
-  const props = { viewBox: "0 0 24 24", width: 22, height: 22, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  const props = { viewBox: "0 0 24 24", width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
   if (name === "resultados") return <svg {...props}><path d="M4 6h16M4 12h16M4 18h10" /></svg>;
   if (name === "proximos") return <svg {...props}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>;
   if (name === "tabela") return <svg {...props}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M3 15h18M9 3v18" /></svg>;
   if (name === "favoritos")
     return (
-      <svg viewBox="0 0 24 24" width={22} height={22} fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+      <svg viewBox="0 0 24 24" width={20} height={20} fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
         <path d="M12 2l2.9 6.6 7.1.6-5.4 4.6 1.7 7-6.3-3.9L5.7 21l1.7-7L2 9.2l7.1-.6z" />
       </svg>
     );
-  if (name === "mais") return <svg viewBox="0 0 24 24" width={22} height={22} fill="currentColor"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
+  if (name === "mais") return <svg viewBox="0 0 24 24" width={20} height={20} fill="currentColor"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>;
   return null;
 }
 
@@ -93,6 +93,7 @@ export default function Page() {
   const [dateFilter, setDateFilter] = useState("todos");
   const [history, setHistory] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     try {
@@ -179,8 +180,15 @@ export default function Page() {
   const standings = data?.standings ?? { total: [], home: [], away: [] };
   const allMatches = data?.matches ?? [];
 
+  function matchesSearch(m) {
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    return m.homeTeam.name.toLowerCase().includes(q) || m.awayTeam.name.toLowerCase().includes(q);
+  }
+
   const results = allMatches
     .filter((m) => m.status === "FINISHED")
+    .filter(matchesSearch)
     .sort((a, b) => new Date(b.utcDate) - new Date(a.utcDate))
     .slice(0, 12);
 
@@ -189,11 +197,13 @@ export default function Page() {
     .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
     .slice(0, 12);
 
-  const filteredUpcoming = upcoming.filter((m) => {
-    if (dateFilter === "fim") return isWeekend(m.utcDate);
-    if (dateFilter === "meio") return !isWeekend(m.utcDate);
-    return true;
-  });
+  const filteredUpcoming = upcoming
+    .filter(matchesSearch)
+    .filter((m) => {
+      if (dateFilter === "fim") return isWeekend(m.utcDate);
+      if (dateFilter === "meio") return !isWeekend(m.utcDate);
+      return true;
+    });
 
   const favResults = results.filter((m) => favorites.includes(m.homeTeam.name) || favorites.includes(m.awayTeam.name));
   const favUpcoming = upcoming.filter((m) => favorites.includes(m.homeTeam.name) || favorites.includes(m.awayTeam.name));
@@ -268,6 +278,7 @@ export default function Page() {
   function UpcomingRow(m) {
     const est = estimateMatch(standings, allMatches, m.homeTeam.name, m.awayTeam.name);
     const statState = statsByMatch[m.id];
+    const homeIsFavored = est ? est.pHome >= est.pAway : true;
     return (
       <div className="up-row" key={m.id}>
         <div className="up-top">
@@ -281,9 +292,9 @@ export default function Page() {
         {est ? (
           <>
             <div className="bar">
-              <div className="seg seg-h" style={{ width: `${est.pHome}%` }} />
-              <div className="seg seg-d" style={{ width: `${est.pDraw}%` }} />
-              <div className="seg seg-a" style={{ width: `${est.pAway}%` }} />
+              <div style={{ width: `${est.pHome}%`, background: homeIsFavored ? "#22c55e" : "#ef4444" }} />
+              <div style={{ width: `${est.pDraw}%`, background: "#eab308" }} />
+              <div style={{ width: `${est.pAway}%`, background: homeIsFavored ? "#ef4444" : "#22c55e" }} />
             </div>
             <div className="up-bottom">
               <span>{est.pHome.toFixed(0)}%</span>
@@ -327,10 +338,33 @@ export default function Page() {
                 <span className="stats-label">Chutes a gol</span>
               </div>
               <div className="stats-item">
-                <span className="stats-num">{(statState.data.home.throwIns + statState.data.away.throwIns).toFixed(1)}</span>
-                <span className="stats-label">Laterais</span>
+                <span className="stats-num">{(statState.data.home.totalShots + statState.data.away.totalShots).toFixed(1)}</span>
+                <span className="stats-label">Chutes totais</span>
+              </div>
+              <div className="stats-item">
+                <span className="stats-num">{(statState.data.home.yellowCards + statState.data.away.yellowCards).toFixed(1)}</span>
+                <span className="stats-label">Cartões amarelos</span>
+              </div>
+              <div className="stats-item">
+                <span className="stats-num">{(statState.data.home.redCards + statState.data.away.redCards).toFixed(1)}</span>
+                <span className="stats-label">Cartões vermelhos</span>
+              </div>
+              <div className="stats-item">
+                <span className="stats-num">{(statState.data.home.offsides + statState.data.away.offsides).toFixed(1)}</span>
+                <span className="stats-label">Impedimentos</span>
+              </div>
+              <div className="stats-item">
+                <span className="stats-num">{(statState.data.home.saves + statState.data.away.saves).toFixed(1)}</span>
+                <span className="stats-label">Defesas</span>
               </div>
             </div>
+            {(statState.data.home.possession !== null || statState.data.away.possession !== null) && (
+              <div className="possession-row">
+                <span>{statState.data.home.possession?.toFixed(0) ?? "—"}% posse</span>
+                <span className="vs">vs</span>
+                <span>{statState.data.away.possession?.toFixed(0) ?? "—"}% posse</span>
+              </div>
+            )}
             <div className="stats-sub">
               Baseado nos últimos {statState.data.home.sampleSize} jogos de {m.homeTeam.name} e {statState.data.away.sampleSize} de {m.awayTeam.name}.
             </div>
@@ -342,167 +376,182 @@ export default function Page() {
 
   const currentLeagueLabel = LEAGUES.find((l) => l.code === league)?.label ?? "";
 
+  const NAV_ITEMS = [
+    { id: "resultados", label: "Resultados" },
+    { id: "proximos", label: "Próximos" },
+    { id: "tabela", label: "Tabela" },
+    { id: "favoritos", label: "Favoritos" },
+  ];
+
   return (
-    <div className="app">
-      <div className="topbar">
-        <span className="topbar-title">⚽ Boletim</span>
-        <button className="league-chip" onClick={() => setSheetOpen(true)}>
-          {currentLeagueLabel} <span className="chevron">▾</span>
-        </button>
-      </div>
-
-      {error && <div className="error-msg">{error}</div>}
-
-      {bestPick && (
-        <div className="bestpick-card">
-          <div className="bestpick-label">Palpite com maior probabilidade estimada</div>
-          <div className="bestpick-teams">
-            <span className="team-cell plain"><Crest src={bestPick.match.homeTeam.crest} alt="" />{bestPick.match.homeTeam.name}</span>
-            <span className="vs">vs</span>
-            <span className="team-cell plain"><Crest src={bestPick.match.awayTeam.crest} alt="" />{bestPick.match.awayTeam.name}</span>
-          </div>
-          <div className="bestpick-market">{bestPick.market}</div>
-          <div className="bestpick-prob">{bestPick.prob.toFixed(0)}%</div>
-          <div className="bestpick-date">{fmtDate(bestPick.match.utcDate)}</div>
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="sidebar-logo">⚽</div>
+        <div className="sidebar-search">
+          <input
+            type="text"
+            placeholder="Buscar time"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-      )}
-
-      <div className="content">
-        {loading && <div className="state-msg">Carregando dados…</div>}
-
-        {!loading && section === "resultados" && results.map(ResultRow)}
-
-        {!loading && section === "proximos" && (
-          <>
-            <div className="date-tabs">
-              <button className={"date-tab " + (dateFilter === "todos" ? "active" : "")} onClick={() => setDateFilter("todos")}>Todos</button>
-              <button className={"date-tab " + (dateFilter === "meio" ? "active" : "")} onClick={() => setDateFilter("meio")}>Meio de semana</button>
-              <button className={"date-tab " + (dateFilter === "fim" ? "active" : "")} onClick={() => setDateFilter("fim")}>Fim de semana</button>
-            </div>
-            {filteredUpcoming.length === 0 && <div className="state-msg">Nenhum jogo nesse período.</div>}
-            {filteredUpcoming.map(UpcomingRow)}
-          </>
-        )}
-
-        {!loading && section === "tabela" && (
-          <div className="table-wrap">
-            <div className="table-head">
-              <span className="pos">#</span>
-              <span className="team">Time</span>
-              <span>V</span>
-              <span>E</span>
-              <span>D</span>
-              <span>Pts</span>
-            </div>
-            {standings.total.map((s) => (
-              <div className="table-row" key={s.team.id}>
-                <span className="pos">{s.position}</span>
-                <span className="team">
-                  <TeamTag name={s.team.name} crest={s.team.crest} favorites={favorites} onToggleFavorite={toggleFavorite} />
-                </span>
-                <span>{s.won}</span>
-                <span>{s.draw}</span>
-                <span>{s.lost}</span>
-                <span className="pts">{s.points}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!loading && section === "favoritos" && (
-          <>
-            {favorites.length === 0 && (
-              <div className="state-msg">Toque na estrela ☆ ao lado de um time pra favoritar e vê-lo aqui.</div>
-            )}
-            {favorites.length > 0 && favResults.length === 0 && favUpcoming.length === 0 && (
-              <div className="state-msg">Nenhum jogo de time favorito nesta liga no momento.</div>
-            )}
-            {favResults.length > 0 && <div className="section-label">Resultados</div>}
-            {favResults.map(ResultRow)}
-            {favUpcoming.length > 0 && <div className="section-label">Próximas partidas</div>}
-            {favUpcoming.map(UpcomingRow)}
-          </>
-        )}
-
-        {section === "historico" && (
-          <>
-            {loadingHistory && <div className="state-msg">Carregando histórico…</div>}
-            {!loadingHistory && history && (
-              <>
-                <div className="bestpick-card">
-                  <div className="bestpick-label">Taxa de acerto (partidas já resolvidas)</div>
-                  <div className="bestpick-prob">{history.stats.accuracy.toFixed(0)}%</div>
-                  <div className="bestpick-date">{history.stats.hits} de {history.stats.total} palpites batem com o resultado</div>
-                </div>
-                {history.records.length === 0 && (
-                  <div className="state-msg">Ainda sem partidas resolvidas — volte depois que alguns jogos acontecerem.</div>
-                )}
-                {history.records.map((r) => (
-                  <div className="advantage-card" key={r.id}>
-                    <div className="advantage-top">
-                      <span className="advantage-teams">{r.home} vs {r.away}</span>
-                      <span className="advantage-pct" style={{ color: r.hit ? "#4f9c73" : "#ff9d8a" }}>
-                        {r.hit ? "✓ Acertou" : "✗ Errou"}
-                      </span>
-                    </div>
-                    <div className="advantage-sub">
-                      Previsto: {r.predicted} · Real: {r.homeGoals}-{r.awayGoals} ({r.actual}) · {fmtDate(r.date)}
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-          </>
-        )}
-
-        {!loading && section === "vantagens" && advantages && (
-          <>
-            {advantages.length === 0 && <div className="state-msg">Nenhuma partida futura disponível para estimar.</div>}
-            {advantages.map(({ match, estimate, favored, edge }) => (
-              <div className="advantage-card" key={match.id}>
-                <div className="advantage-top">
-                  <span className="advantage-teams">
-                    <span className="team-cell plain"><Crest src={match.homeTeam.crest} alt="" />{match.homeTeam.name}</span>
-                    <span className="vs">vs</span>
-                    <span className="team-cell plain"><Crest src={match.awayTeam.crest} alt="" />{match.awayTeam.name}</span>
-                  </span>
-                  <span className="advantage-pct">{edge.toFixed(0)}%</span>
-                </div>
-                <div className="advantage-sub">
-                  Favorito: {favored === "casa" ? match.homeTeam.name : match.awayTeam.name} ({favored}) · {fmtDate(match.utcDate)} · placar provável {estimate.likelyScore}
-                </div>
-              </div>
-            ))}
-          </>
-        )}
-
-        <p className="footnote">
-          Estimativas calculadas com um modelo de Poisson (ataque/defesa por casa/fora + forma recente) e médias
-          históricas de escanteios/faltas/chutes/laterais — não usam odds de casas de apostas, não são garantia de
-          resultado e não são recomendação de aposta.
-        </p>
-      </div>
-
-      <div className="bottomnav">
-        {[
-          { id: "resultados", label: "Resultados" },
-          { id: "proximos", label: "Próximos" },
-          { id: "tabela", label: "Tabela" },
-          { id: "favoritos", label: "Favoritos" },
-        ].map((item) => (
+        {NAV_ITEMS.map((item) => (
           <button
             key={item.id}
-            className={"nav-btn " + (section === item.id ? "active" : "")}
+            className={"side-btn " + (section === item.id ? "active" : "")}
             onClick={() => setSection(item.id)}
           >
             <NavIcon name={item.id} active={section === item.id} />
             <span>{item.label}</span>
           </button>
         ))}
-        <button className={"nav-btn " + (sheetOpen ? "active" : "")} onClick={() => setSheetOpen(true)}>
+        <button className={"side-btn " + (sheetOpen ? "active" : "")} onClick={() => setSheetOpen(true)}>
           <NavIcon name="mais" />
           <span>Mais</span>
         </button>
+      </aside>
+
+      <div className="main">
+        <div className="topbar">
+          <span className="topbar-title">Boletim Sports</span>
+          <button className="league-chip" onClick={() => setSheetOpen(true)}>
+            {currentLeagueLabel} <span className="chevron">▾</span>
+          </button>
+        </div>
+
+        <div className="content">
+          {error && <div className="error-msg">{error}</div>}
+
+          {bestPick && (
+            <div className="bestpick-card">
+              <div className="bestpick-label">Palpite com maior probabilidade estimada</div>
+              <div className="bestpick-teams">
+                <span className="team-cell plain"><Crest src={bestPick.match.homeTeam.crest} alt="" />{bestPick.match.homeTeam.name}</span>
+                <span className="vs">vs</span>
+                <span className="team-cell plain"><Crest src={bestPick.match.awayTeam.crest} alt="" />{bestPick.match.awayTeam.name}</span>
+              </div>
+              <div className="bestpick-market">{bestPick.market}</div>
+              <div className="bestpick-prob">{bestPick.prob.toFixed(0)}%</div>
+              <div className="bestpick-date">{fmtDate(bestPick.match.utcDate)}</div>
+            </div>
+          )}
+
+          {loading && <div className="state-msg">Carregando dados…</div>}
+
+          {!loading && section === "resultados" && results.map(ResultRow)}
+
+          {!loading && section === "proximos" && (
+            <>
+              <div className="date-tabs">
+                <button className={"date-tab " + (dateFilter === "todos" ? "active" : "")} onClick={() => setDateFilter("todos")}>Todos</button>
+                <button className={"date-tab " + (dateFilter === "meio" ? "active" : "")} onClick={() => setDateFilter("meio")}>Meio de semana</button>
+                <button className={"date-tab " + (dateFilter === "fim" ? "active" : "")} onClick={() => setDateFilter("fim")}>Fim de semana</button>
+              </div>
+              {filteredUpcoming.length === 0 && <div className="state-msg">Nenhum jogo nesse período.</div>}
+              {filteredUpcoming.map(UpcomingRow)}
+            </>
+          )}
+
+          {!loading && section === "tabela" && (
+            <div className="table-wrap">
+              <div className="table-head">
+                <span className="pos">#</span>
+                <span className="team">Time</span>
+                <span>V</span>
+                <span>E</span>
+                <span>D</span>
+                <span>Pts</span>
+              </div>
+              {standings.total
+                .filter((s) => !search.trim() || s.team.name.toLowerCase().includes(search.trim().toLowerCase()))
+                .map((s) => (
+                  <div className="table-row" key={s.team.id}>
+                    <span className="pos">{s.position}</span>
+                    <span className="team">
+                      <TeamTag name={s.team.name} crest={s.team.crest} favorites={favorites} onToggleFavorite={toggleFavorite} />
+                    </span>
+                    <span>{s.won}</span>
+                    <span>{s.draw}</span>
+                    <span>{s.lost}</span>
+                    <span className="pts">{s.points}</span>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {!loading && section === "favoritos" && (
+            <>
+              {favorites.length === 0 && (
+                <div className="state-msg">Toque na estrela ☆ ao lado de um time pra favoritar e vê-lo aqui.</div>
+              )}
+              {favorites.length > 0 && favResults.length === 0 && favUpcoming.length === 0 && (
+                <div className="state-msg">Nenhum jogo de time favorito nesta liga no momento.</div>
+              )}
+              {favResults.length > 0 && <div className="section-label">Resultados</div>}
+              {favResults.map(ResultRow)}
+              {favUpcoming.length > 0 && <div className="section-label">Próximas partidas</div>}
+              {favUpcoming.map(UpcomingRow)}
+            </>
+          )}
+
+          {section === "historico" && (
+            <>
+              {loadingHistory && <div className="state-msg">Carregando histórico…</div>}
+              {!loadingHistory && history && (
+                <>
+                  <div className="bestpick-card">
+                    <div className="bestpick-label">Taxa de acerto (partidas já resolvidas)</div>
+                    <div className="bestpick-prob">{history.stats.accuracy.toFixed(0)}%</div>
+                    <div className="bestpick-date">{history.stats.hits} de {history.stats.total} palpites batem com o resultado</div>
+                  </div>
+                  {history.records.length === 0 && (
+                    <div className="state-msg">Ainda sem partidas resolvidas — volte depois que alguns jogos acontecerem.</div>
+                  )}
+                  {history.records.map((r) => (
+                    <div className="advantage-card" key={r.id}>
+                      <div className="advantage-top">
+                        <span className="advantage-teams">{r.home} vs {r.away}</span>
+                        <span className="advantage-pct" style={{ color: r.hit ? "#4f9c73" : "#ff9d8a" }}>
+                          {r.hit ? "✓ Acertou" : "✗ Errou"}
+                        </span>
+                      </div>
+                      <div className="advantage-sub">
+                        Previsto: {r.predicted} · Real: {r.homeGoals}-{r.awayGoals} ({r.actual}) · {fmtDate(r.date)}
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+
+          {!loading && section === "vantagens" && advantages && (
+            <>
+              {advantages.length === 0 && <div className="state-msg">Nenhuma partida futura disponível para estimar.</div>}
+              {advantages.map(({ match, estimate, favored, edge }) => (
+                <div className="advantage-card" key={match.id}>
+                  <div className="advantage-top">
+                    <span className="advantage-teams">
+                      <span className="team-cell plain"><Crest src={match.homeTeam.crest} alt="" />{match.homeTeam.name}</span>
+                      <span className="vs">vs</span>
+                      <span className="team-cell plain"><Crest src={match.awayTeam.crest} alt="" />{match.awayTeam.name}</span>
+                    </span>
+                    <span className="advantage-pct">{edge.toFixed(0)}%</span>
+                  </div>
+                  <div className="advantage-sub">
+                    Favorito: {favored === "casa" ? match.homeTeam.name : match.awayTeam.name} ({favored}) · {fmtDate(match.utcDate)} · placar provável {estimate.likelyScore}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          <p className="footnote">
+            Estimativas calculadas com um modelo de Poisson (ataque/defesa por casa/fora + forma recente) e médias
+            históricas de escanteios/faltas/chutes/cartões/impedimentos/defesas — não usam odds de casas de apostas,
+            não são garantia de resultado e não são recomendação de aposta.
+          </p>
+        </div>
       </div>
 
       {sheetOpen && (
